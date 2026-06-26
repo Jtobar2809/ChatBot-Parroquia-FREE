@@ -1,0 +1,33 @@
+[Unit]
+Description=Chatbot WhatsApp Parroquia (Baileys + Supabase)
+Documentation=https://github.com/WhiskeySockets/Baileys
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/chatbot_Virgilio
+ExecStart=/usr/bin/node /home/ubuntu/chatbot_Virgilio/index.js
+
+# Reiniciar siempre que se caiga, con backoff de 5 segundos.
+Restart=always
+RestartSec=5
+
+# Limitar reinicios para evitar bucles infinitos si algo esta mal.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Variables de entorno: las leemos desde .env via dotenv en el codigo,
+# asi que aqui solo declaramos NODE_ENV.
+Environment=NODE_ENV=production
+
+# Logs van a journald (los ves con `journalctl -u parroquia-bot`).
+StandardOutput=journal
+StandardError=journal
+
+# Limitar memoria para que un fuga no tumbe el servidor.
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
