@@ -1,0 +1,38 @@
+name: Deploy a Oracle Cloud
+
+# Despliegue continuo: cada push a main entra por SSH a la VM,
+# actualiza el codigo y reinicia el servicio systemd del bot.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {} # permite lanzarlo a mano desde la pestaña Actions
+
+concurrency:
+  group: deploy-produccion
+  cancel-in-progress: false # nunca cortar un despliegue a medias
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Desplegar por SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          script_stop: true # si un comando falla, aborta el despliegue
+          script: |
+            set -e
+            cd ~/chatbot_Virgilio
+            echo ">> git pull origin main"
+            git fetch origin main
+            git reset --hard origin/main
+            echo ">> npm install (solo dependencias de produccion)"
+            npm install --omit=dev
+            echo ">> reiniciando servicio parroquia-bot"
+            sudo systemctl restart parroquia-bot
+            sleep 3
+            sudo systemctl is-active parroquia-bot
+            echo ">> Despliegue OK"
