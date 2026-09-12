@@ -16,13 +16,31 @@ const infoFlow = require('../flows/info.flow');
 const otrosFlow = require('../flows/otros.flow');
 const logger = require('../utils/logger');
 
-const RESET_KEYWORDS = ['menu', 'menú', 'inicio', 'cancelar', 'salir'];
+const RESET_KEYWORDS = ['menu', 'inicio', 'cancelar', 'salir'];
+const RESET_PHRASE = 'Hasta pronto bendiciones';
 
 const flows = {
   misa: misaFlow,
   documentos: documentosFlow,
   otros: otrosFlow,
 };
+
+function normalizeText(text) {
+  return (text || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isResetPhrase(text) {
+  const normalizedInput = normalizeText(text);
+  const normalizedPhrase = normalizeText(RESET_PHRASE);
+
+  return normalizedInput === normalizedPhrase;
+}
 
 /**
  * Procesa un mensaje entrante.
@@ -37,13 +55,17 @@ async function processMessage(jid, text) {
     return 'No recibí tu mensaje. Por favor, escribe de nuevo.';
   }
 
-  // Palabras clave para reiniciar la conversacion en cualquier momento.
-  if (RESET_KEYWORDS.includes(cleanText.toLowerCase())) {
+  const session = sessionManager.getSession(jid);
+  const normalizedText = normalizeText(cleanText);
+
+  // Solo reinicia dentro de un flujo activo.
+  if (session.flow && (
+    RESET_KEYWORDS.includes(normalizedText) ||
+    isResetPhrase(cleanText)
+  )) {
     sessionManager.resetSession(jid);
     return menuFlow.getMenuText();
   }
-
-  const session = sessionManager.getSession(jid);
 
   // Si no hay flujo activo: mostrar menu o procesar la opcion elegida.
   if (!session.flow) {
